@@ -1,0 +1,1113 @@
+---
+title: "Visualization of preprocessed CHIKV infected fibroblasts, all samples"
+output: html_notebook
+---
+
+
+```{r}
+# Load required packages
+
+# Processing
+library(Seurat)
+library(dplyr)
+library(cowplot)
+library(patchwork)
+library(ggplot2)
+library(tidyverse)
+# Visualization
+library(RColorBrewer)
+library(rcartocolor)
+
+```
+
+```{r}
+#Defining the color scheme
+
+cols <- carto_pal(7, "Geyser") #rev(brewer.pal(9, 'GnBU')) reverses order
+newcol <- colorRampPalette(cols) #extrapolate inbetween colors
+ncols <- 100 #how many new colors?
+cols2 <- newcol(ncols) #apply the function to get 100 colours
+```
+
+```{r}
+# UMAP colored by infection status
+Idents(integrated_j9_all) <- "infection"
+
+integrated_j9_all_umap_inf <-DimPlot(integrated_j9_all,
+                                     reduction = "umap", label = FALSE,
+                                     pt.size = 1, label.size = 6, 
+                                     split.by = "donor",
+                                     cols = c("#f4a261", "#2a9d8f", 
+                                              "#264653", "#be5168")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+integrated_j9_all_umap_inf  
+
+ggsave("./UMAPs/integrated_j9_all_infection.png", 
+       plot = integrated_j9_all_umap_inf, 
+       width = 15, height = 15, units = "cm")
+```
+
+```{r}
+# UMAP colored by cluster
+integrated_j9_all$integrated_snn_res.0.5 <- factor(
+  x = integrated_j9_all$integrated_snn_res.0.5,
+  levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
+             11, 12, 13, 14, 15, 16, 17, 18))
+
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+
+integrated_j9_all_umap_cluster <-DimPlot(integrated_j9_all,
+                                         reduction = "umap", label = TRUE,
+                                         pt.size = 0.5, label.size = 6, 
+                                         cols = c("#51574a", "#447c69", "#74c493",
+                                                  "#8e8c6d", "#e4bf80", "#e9d78e",
+                                                  "#e2975d", "#f19670", "#e16552",
+                                                  "#c94a53", "#be5168", "#a34974",
+                                                  "#993767", "#65387d", "#4e2472",
+                                                  "#9163b6", "#e279a3", "#e0598b",
+                                                  "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+integrated_j9_all_umap_cluster
+
+ggsave("./UMAPs/integrated_j9_all_cluster.png", 
+       plot = integrated_j9_all_umap_cluster, 
+       width = 20, height = 15, units = "cm")
+
+
+```
+
+```{r}
+integrated_j9_all$infection <- factor(x = integrated_j9_all$infection,
+                                      levels = c('mock', 'adv5', "adv40", "adv41"))
+Idents(integrated_j9_all) <- "infection"
+VlnPlot(integrated_j9_all, features = "percent.adv", split.by = "infection")
+
+#UMAP for any gene of interest
+col.sc.goi <- scale_color_gradientn(colours = cols2, limits=c(0.00001,100))
+
+umap_integrated_j9_all_adv <- FeaturePlot(integrated_j9_all, 
+                                          features = "percent.adv",
+                                          split.by = "infection",
+                                          label = FALSE, combine = FALSE, 
+                                          pt.size = 0.5)
+
+for(i in 1:length(umap_integrated_j9_all_adv)) {
+  umap_integrated_j9_all_adv[[i]] <- umap_integrated_j9_all_adv[[i]] + 
+    NoAxes() + labs(title ="") + 
+    theme(legend.position = "none") + 
+    theme(panel.border =element_blank()) + 
+    col.sc.goi
+} 
+
+umap_integrated_j9_all_adv
+
+grid_splitbyinfection_adv <- cowplot::plot_grid(plotlist = 
+                                                  umap_integrated_j9_all_adv, 
+                                                ncol = 2)
+
+grid_splitbyinfection_adv
+
+ggsave("./UMAPs/UMAP_splitbyinfection_percentadv.png", 
+       plot = grid_splitbyinfection_adv, 
+       width = 10, height = 15, units = "cm", dpi = 300)
+```
+
+```{r}
+# VlnPlot for any gene of interest
+Idents(integrated_j9_all) <- "infection"
+
+VlnPlot_goi <- VlnPlot(integrated_j9_all, features = "percent.adv", 
+                       idents = "adv5",
+                       split.by = "integrated_snn_res.0.5",
+                       cols = c("#f4a261", "#f4a261", 
+                                "#2a9d8f", "#2a9d8f", "#2a9d8f","#2a9d8f", 
+                                "#264653", "#264653", "#264653", "#264653"),
+                       pt.size = 0) + 
+  stat_summary(fun = median, geom='point', size = 7, 
+               colour = "black", shape = 95) +
+  theme(legend.position = "none")
+
+VlnPlot_goi 
+
+```
+
+```{r}
+# UMAPs of IFN module score
+VlnPlot(integrated_j9_all, features = "ifn_sig1")
+
+col.sc.ifn <- scale_color_gradientn(colours = cols2, limits=c(-0.05,0.1))
+
+umap_integrated_j9_all_ifn <- FeaturePlot(integrated_j9_all, 
+                                          features = "ifn_sig1", 
+                                          split.by = "infection",
+                                          label = FALSE, combine = FALSE, 
+                                          pt.size = 0.5)
+
+for(i in 1:length(umap_integrated_j9_all_ifn)) {
+  umap_integrated_j9_all_ifn[[i]] <- umap_integrated_j9_all_ifn[[i]] + NoAxes() + 
+    labs(title ="") + theme(legend.position = "none") + 
+    theme(panel.border =element_blank()) + col.sc.ifn
+}
+
+grid_splitbyadv_ifn_all <- cowplot::plot_grid(plotlist = 
+                                                umap_integrated_j9_all_ifn, 
+                                              ncol = 2)
+
+grid_splitbyadv_ifn_all
+
+ggsave("./UMAPs/UMAP_splitbyadv_ifn_all.png",
+       plot = grid_splitbychikv_ifn_all,
+       width = 10, height = 15, units = "cm", dpi = 300)
+```
+
+```{r}
+# UMAP colored by cluster, split by infection
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+integrated_j9_all$integrated_snn_res.0.5 <- factor(
+  x = integrated_j9_all$integrated_snn_res.0.5,
+  levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
+             11, 12, 13, 14, 15, 16, 17, 18))
+integrated_j9_all$infection <- factor(
+  x = integrated_j9_all$infection, levels = c("mock", "adv5", "adv40", "adv41"))
+
+umap_cluster_split <-DimPlot(integrated_j9_all,
+                             reduction = "umap", label = F, 
+                             split.by = "infection", ncol = 2,
+                             pt.size = 0.2, label.size = 6, 
+                             cols = c("#51574a", "#447c69", "#74c493",
+                                      "#8e8c6d", "#e4bf80", "#e9d78e",
+                                      "#e2975d", "#f19670", "#e16552",
+                                      "#c94a53", "#be5168", "#a34974",
+                                      "#993767", "#65387d", "#4e2472",
+                                      "#9163b6", "#e279a3", "#e0598b",
+                                      "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+umap_cluster_split
+
+ggsave("./UMAPs/integrated_j9_all_cluster_split.png", 
+       plot = umap_cluster_split, 
+       width = 18, height = 15, units = "cm", dpi = 300)
+```
+
+```{r}
+# DotPlots of marker genes from paper 
+integrated_j9_all$integrated_snn_res.0.5 <- factor(
+  x = integrated_j9_all$integrated_snn_res.0.5,
+  levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18))
+
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+annotation_genes <- c("ALPI", "SLC26A3", "TMEM37", "FABP2", "ZG16",
+                      "CLCA1", "FFAR4", "TFF3", "SPINK4", "LYZ", "CA7", "SPIB", 
+                      "CA4", "FKBP1A", "CHGA", "CHGB", "CPE", "NEUROD1", "PYY", 
+                      "SOX9", "CDK6", "MUC4", "FABP5", "PLA2G2A", "LCN2", 
+                      "KI67", "PCNA", "TOP2A", "CCNA2", "MCM5", "LGR5", "RGMB", 
+                      "SMOC2", "ASCL2")
+
+dotplot_marker <- DotPlot(object = integrated_j9_all, 
+                          features = annotation_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_marker <- VlnPlot(object = integrated_j9_all, 
+                          features = annotation_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_marker
+
+ggsave("./UMAPs/integrated_j9_all_dotplot_marker.png", 
+       plot = dotplot_marker, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/integrated_j9_all_Vlnplot_marker.png", 
+       plot = vlnplot_marker, 
+       width = 60, height = 10, units = "cm", dpi = 300, limitsize = FALSE)
+```
+
+```{r}
+# DotPlots of marker genes from Tiara et al
+integrated_j9_all$integrated_snn_res.0.5 <- factor(x = integrated_j9_all$integrated_snn_res.0.5,
+                                                   levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18))
+
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+
+# Enterocytes
+enterocyte_genes <- c("APOC3", "APOA4", "APOA1", "APOB", "FABP6")
+
+dotplot_enterocyte <- DotPlot(object = integrated_j9_all, 
+                              features = enterocyte_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_enterocyte <- VlnPlot(object = integrated_j9_all, 
+                              features = enterocyte_genes,
+                              ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_enterocyte.png", 
+       plot = dotplot_enterocyte, 
+       width = 9, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_enterocyte.png", 
+       plot = vlnplot_enterocyte, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# immature_enterocytes
+immature_enterocyte_genes <- c("DUOXA2", "TM4SF1", "TFF1", "IFI27", "IFI6")
+
+dotplot_immature_enterocyte <- DotPlot(object = integrated_j9_all, 
+                                       features = immature_enterocyte_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_immature_enterocyte <- VlnPlot(object = integrated_j9_all, 
+                                       features = immature_enterocyte_genes,
+                                       ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_immature_enterocyte.png", 
+       plot = dotplot_immature_enterocyte, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_immature_enterocyte.png", 
+       plot = vlnplot_immature_enterocyte,
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# enterocyte_progenitors
+enterocyte_progenitor_genes <- c("HSPA5", "RBP2", "CBR1", "GSTA1", "FABP6")
+
+dotplot_enterocyte_progenitor <- DotPlot(object = integrated_j9_all, 
+                                         features = enterocyte_progenitor_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_enterocyte_progenitor <- VlnPlot(object = integrated_j9_all, 
+                                         features = enterocyte_progenitor_genes,
+                                         ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_enterocyte_progenitor.png", 
+       plot = dotplot_enterocyte_progenitor, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_enterocyte_progenitor.png", 
+       plot = vlnplot_enterocyte_progenitor, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# Best4_enterocytess
+Best4_enterocytes_genes <- c("BEST4", "CA7", "SPIB", "POLR2J", "GUCA2A")
+
+dotplot_Best4_enterocytes <- DotPlot(object = integrated_j9_all, 
+                                     features = Best4_enterocytes_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_Best4_enterocytes <- VlnPlot(object = integrated_j9_all, 
+                                     features = Best4_enterocytes_genes,
+                                     ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_Best4_enterocytes.png", 
+       plot = dotplot_Best4_enterocytes, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_Best4_enterocytes.png", 
+       plot = vlnplot_Best4_enterocytes, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# goblets
+goblet_genes <- c("FCGBP", "GOB5", "SPINK4", "FCGBP", "ZG16")
+
+dotplot_goblet <- DotPlot(object = integrated_j9_all, 
+                          features = goblet_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_goblet <- VlnPlot(object = integrated_j9_all, features = goblet_genes,
+                          ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_goblet.png", 
+       plot = dotplot_goblet, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_goblet.png", 
+       plot = vlnplot_goblet, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# enteroendocrines
+enteroendocrine_genes <- c("CHGA", "PYY1", "NTS", "GIP", "MLN")
+
+dotplot_enteroendocrine <- DotPlot(object = integrated_j9_all, 
+                                   features = enteroendocrine_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_enteroendocrine <- VlnPlot(object = integrated_j9_all, 
+                                   features = enteroendocrine_genes,
+                                   ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_enteroendocrine.png", 
+       plot = dotplot_enteroendocrine, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_enteroendocrine.png", 
+       plot = vlnplot_enteroendocrine, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# stemcells
+stemcells_genes <- c("OLFM4", "LDHB", "NPM1", "NCL", "NAP1L1")
+
+dotplot_stemcells <- DotPlot(object = integrated_j9_all, 
+                             features = stemcells_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_stemcells <- VlnPlot(object = integrated_j9_all, 
+                             features = stemcells_genes,
+                             ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_stemcells.png", 
+       plot = dotplot_stemcells, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_stemcells.png", 
+       plot = vlnplot_stemcells, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# TAs
+TA_genes <- c("CXCL3", "CXCL1", "CXCL2", "CXCL5", "CCL2")
+
+dotplot_TA <- DotPlot(object = integrated_j9_all, features = TA_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_TA <- VlnPlot(object = integrated_j9_all, features = TA_genes,
+                      ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_TA.png", 
+       plot = dotplot_TA, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_TA.png", 
+       plot = vlnplot_TA, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# cycling_TAs
+cycling_TA_genes <- c("TUBA1B", "MKI67", "NCL", "HIST1H4C", "CENPF")
+
+dotplot_cycling_TA <- DotPlot(object = integrated_j9_all,
+                              features = cycling_TA_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_cycling_TA <- VlnPlot(object = integrated_j9_all, 
+                              features = cycling_TA_genes,
+                              ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_cycling_TA.png", 
+       plot = dotplot_cycling_TA, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_cycling_TA.png", 
+       plot = vlnplot_cycling_TA, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# secretory_TAs
+secretory_TA_genes <- c("HES6", "STMN1", "SPINK4", "PRSS2", "SOX4")
+
+dotplot_secretory_TA <- DotPlot(object = integrated_j9_all, 
+                                features = secretory_TA_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_secretory_TA <- VlnPlot(object = integrated_j9_all, 
+                                features = secretory_TA_genes,
+                                ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_secretory_TA.png", 
+       plot = dotplot_secretory_TA, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_secretory_TA.png", 
+       plot = vlnplot_secretory_TA, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# stressed_TAs
+stressed_TA_genes <- c("HSPA1A", "HSPA1B", "HSPA6", "HSPH1", "DNAJB1")
+
+dotplot_stressed_TA <- DotPlot(object = integrated_j9_all, 
+                               features = stressed_TA_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_stressed_TA <- VlnPlot(object = integrated_j9_all, 
+                               features = stressed_TA_genes,
+                               ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_stressed_TA.png", 
+       plot = dotplot_stressed_TA, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_stressed_TA.png", 
+       plot = vlnplot_stressed_TA, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# tufts
+tuft_genes <- c("AZGP1", "MATK", "LRMP", "SH2D6", "RGS13")
+
+dotplot_tuft <- DotPlot(object = integrated_j9_all, features = tuft_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_tuft <- VlnPlot(object = integrated_j9_all, features = tuft_genes,
+                        ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_tuft.png", 
+       plot = dotplot_tuft, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_tuft.png", 
+       plot = vlnplot_tuft, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+
+
+# paneths
+paneth_genes <- c("DEF6", "REG3A", "DEFA5", "PLA2G2A", "PRSS2")
+
+dotplot_paneth <- DotPlot(object = integrated_j9_all, features = paneth_genes) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+vlnplot_paneth <- VlnPlot(object = integrated_j9_all, features = paneth_genes,
+                          ncol = 5) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5), 
+        axis.title.x=element_blank())
+
+
+ggsave("./UMAPs/Triana/j9_dotplot_triana_paneth.png", 
+       plot = dotplot_paneth, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+ggsave("./UMAPs/Triana/j9_Vlnplot_triana_paneth.png", 
+       plot = vlnplot_paneth, 
+       width = 60, height = 10, units = "cm", dpi = 300)
+```
+
+
+```{r}
+# UMAPs of marker genes from Triana et al
+cols_single <- brewer.pal(9, "YlOrRd")[4:8] 
+newcol_single <- colorRampPalette(cols_single)
+ncols <- 100 
+cols2_single <- newcol_single(ncols)
+
+
+################ Enterocytes
+enterocyte_genes <- c("APOC3", "APOA4", "APOA1", "APOB", "FABP6")
+col.sc.enterocytes <- scale_color_gradientn(colours = cols2_single, 
+                                            limits=c(0.0001, 2))
+
+umap_enterocytes <- FeaturePlot(integrated_j9_all, 
+                                features = enterocyte_genes,
+                                label = FALSE, combine = FALSE, 
+                                pt.size = 0.5)
+
+for(i in 1:length(umap_enterocytes)) {
+  umap_enterocytes[[i]] <- umap_enterocytes[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.enterocytes
+} 
+
+grid_enterocytes <- cowplot::plot_grid(plotlist = umap_enterocytes,
+                                       ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_enterocytes.png",
+       plot = grid_enterocytes,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+############# immature_immature_enterocytes
+immature_enterocyte_genes <- c("DUOXA2", "TM4SF1", "TFF1", "IFI27", "IFI6")
+col.sc.immature_enterocytes <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 5))
+
+umap_immature_enterocytes <- FeaturePlot(integrated_j9_all, 
+                                         features = immature_enterocyte_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_immature_enterocytes)) {
+  umap_immature_enterocytes[[i]] <- umap_immature_enterocytes[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.immature_enterocytes
+} 
+
+grid_immature_enterocytes <- cowplot::plot_grid(plotlist = umap_immature_enterocytes,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_immature_enterocytes.png",
+       plot = grid_immature_enterocytes,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### enterocyte_progenitors
+enterocyte_progenitor_genes <- c("HSPA5", "RBP2", "CBR1", "GSTA1", "FABP6")
+col.sc.enterocyte_progenitors <- scale_color_gradientn(colours = cols2_single, 
+                                                       limits=c(0.0001, 2.5))
+
+umap_enterocyte_progenitors <- FeaturePlot(integrated_j9_all, 
+                                           features = enterocyte_progenitor_genes,
+                                           label = FALSE, combine = FALSE, 
+                                           pt.size = 0.5)
+
+for(i in 1:length(umap_enterocyte_progenitors)) {
+  umap_enterocyte_progenitors[[i]] <- umap_enterocyte_progenitors[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.enterocyte_progenitors
+} 
+
+grid_enterocyte_progenitors <- cowplot::plot_grid(plotlist = umap_enterocyte_progenitors,
+                                                  ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_enterocyte_progenitors.png",
+       plot = grid_enterocyte_progenitors,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### Best4_enterocytes
+Best4_enterocyte_genes <- c("BEST4", "CA7", "SPIB", "POLR2J", "GUCA2A")
+col.sc.Best4_enterocytes <- scale_color_gradientn(colours = cols2_single, 
+                                                  limits=c(0.0001, 2))
+
+umap_Best4_enterocytes <- FeaturePlot(integrated_j9_all, 
+                                      features = Best4_enterocyte_genes,
+                                      label = FALSE, combine = FALSE, 
+                                      pt.size = 0.5)
+
+for(i in 1:length(umap_Best4_enterocytes)) {
+  umap_Best4_enterocytes[[i]] <- umap_Best4_enterocytes[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.Best4_enterocytes
+} 
+
+grid_Best4_enterocytes <- cowplot::plot_grid(plotlist = umap_Best4_enterocytes,
+                                             ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_Best4_enterocytes.png",
+       plot = grid_Best4_enterocytes,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### goblets
+goblet_genes <- c("FCGBP", "GOB5", "SPINK4", "FCGBP", "ZG16")
+col.sc.goblets <- scale_color_gradientn(colours = cols2_single, 
+                                        limits=c(0.0001, 1.5))
+
+umap_goblets <- FeaturePlot(integrated_j9_all, 
+                            features = goblet_genes,
+                            label = FALSE, combine = FALSE, 
+                            pt.size = 0.5)
+
+for(i in 1:length(umap_goblets)) {
+  umap_goblets[[i]] <- umap_goblets[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.goblets
+} 
+
+grid_goblets <- cowplot::plot_grid(plotlist = umap_goblets,
+                                   ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_goblets.png",
+       plot = grid_goblets,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### enteroendocrines
+enteroendocrine_genes <- c("CHGA", "PYY1", "NTS", "GIP", "MLN")
+col.sc.enteroendocrines <- scale_color_gradientn(colours = cols2_single, 
+                                                 limits=c(0.0001, 1))
+
+umap_enteroendocrines <- FeaturePlot(integrated_j9_all, 
+                                     features = enteroendocrine_genes,
+                                     label = FALSE, combine = FALSE, 
+                                     pt.size = 0.5)
+
+for(i in 1:length(umap_enteroendocrines)) {
+  umap_enteroendocrines[[i]] <- umap_enteroendocrines[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.enteroendocrines
+} 
+
+grid_enteroendocrines <- cowplot::plot_grid(plotlist = umap_enteroendocrines,
+                                            ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_enteroendocrines.png",
+       plot = grid_enteroendocrines,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### stemcells
+stemcell_genes <- c("OLFM4", "LDHB", "NPM1", "NCL", "NAP1L1")
+col.sc.stemcells <- scale_color_gradientn(colours = cols2_single, 
+                                          limits=c(0.0001, 4))
+
+umap_stemcells <- FeaturePlot(integrated_j9_all, 
+                              features = stemcell_genes,
+                              label = FALSE, combine = FALSE, 
+                              pt.size = 0.5)
+
+for(i in 1:length(umap_stemcells)) {
+  umap_stemcells[[i]] <- umap_stemcells[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.stemcells
+} 
+
+grid_stemcells <- cowplot::plot_grid(plotlist = umap_stemcells,
+                                     ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_stemcells.png",
+       plot = grid_stemcells,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### TAs
+TA_genes <- c("CXCL3", "CXCL1", "CXCL2", "CXCL5", "CCL2")
+col.sc.TAs <- scale_color_gradientn(colours = cols2_single, 
+                                    limits=c(0.0001, 2.5))
+
+umap_TAs <- FeaturePlot(integrated_j9_all, 
+                        features = TA_genes,
+                        label = FALSE, combine = FALSE, 
+                        pt.size = 0.5)
+
+for(i in 1:length(umap_TAs)) {
+  umap_TAs[[i]] <- umap_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.TAs
+} 
+
+grid_TAs <- cowplot::plot_grid(plotlist = umap_TAs,
+                               ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_TAs.png",
+       plot = grid_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### cycling_TAs
+cycling_TA_genes <- c("TUBA1B", "MKI67", "NCL", "HIST1H4C", "CENPF")
+col.sc.cycling_TAs <- scale_color_gradientn(colours = cols2_single, 
+                                            limits=c(0.0001, 2.5))
+
+umap_cycling_TAs <- FeaturePlot(integrated_j9_all, 
+                                features = cycling_TA_genes,
+                                label = FALSE, combine = FALSE, 
+                                pt.size = 0.5)
+
+for(i in 1:length(umap_cycling_TAs)) {
+  umap_cycling_TAs[[i]] <- umap_cycling_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.cycling_TAs
+} 
+
+grid_cycling_TAs <- cowplot::plot_grid(plotlist = umap_cycling_TAs,
+                                       ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_cycling_TAs.png",
+       plot = grid_cycling_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### secretory_TAs
+secretory_TA_genes <- c("HES6", "STMN1", "SPINK4", "PRSS2", "SOX4")
+col.sc.secretory_TAs <- scale_color_gradientn(colours = cols2_single, 
+                                              limits=c(0.0001, 3.5))
+
+umap_secretory_TAs <- FeaturePlot(integrated_j9_all, 
+                                  features = secretory_TA_genes,
+                                  label = FALSE, combine = FALSE, 
+                                  pt.size = 0.5)
+
+for(i in 1:length(umap_secretory_TAs)) {
+  umap_secretory_TAs[[i]] <- umap_secretory_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.secretory_TAs
+} 
+
+grid_secretory_TAs <- cowplot::plot_grid(plotlist = umap_secretory_TAs,
+                                         ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_secretory_TAs.png",
+       plot = grid_secretory_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### stressed_TAs
+stressed_TA_genes <- c("HSPA1A", "HSPA1B", "HSPA6", "HSPH1", "DNAJB1")
+col.sc.stressed_TAs <- scale_color_gradientn(colours = cols2_single, 
+                                             limits=c(0.0001, 2))
+
+umap_stressed_TAs <- FeaturePlot(integrated_j9_all, 
+                                 features = stressed_TA_genes,
+                                 label = FALSE, combine = FALSE, 
+                                 pt.size = 0.5)
+
+for(i in 1:length(umap_stressed_TAs)) {
+  umap_stressed_TAs[[i]] <- umap_stressed_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.stressed_TAs
+} 
+
+grid_stressed_TAs <- cowplot::plot_grid(plotlist = umap_stressed_TAs,
+                                        ncol = 3, nrow =2)
+
+
+ggsave("./UMAPs/Triana/umaps_stressed_TAs.png",
+       plot = grid_stressed_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+########### tufts
+tuft_genes <- c("AZGP1", "MATK", "LRMP", "SH2D6", "RGS13")
+col.sc.tufts <- scale_color_gradientn(colours = cols2_single, 
+                                      limits=c(0.0001, 3))
+
+umap_tufts <- FeaturePlot(integrated_j9_all, 
+                          features = tuft_genes,
+                          label = FALSE, combine = FALSE, 
+                          pt.size = 0.5)
+
+for(i in 1:length(umap_tufts)) {
+  umap_tufts[[i]] <- umap_tufts[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.tufts
+} 
+
+grid_tufts <- cowplot::plot_grid(plotlist = umap_tufts,
+                                 ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_tufts.png",
+       plot = grid_tufts,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### paneths
+paneth_genes <- c("DEF6", "REG3A", "DEFA5", "PLA2G2A", "PRSS2")
+col.sc.paneths <- scale_color_gradientn(colours = cols2_single, 
+                                        limits=c(0.0001, 4))
+
+umap_paneths <- FeaturePlot(integrated_j9_all, 
+                            features = paneth_genes,
+                            label = FALSE, combine = FALSE, 
+                            pt.size = 0.5)
+
+for(i in 1:length(umap_paneths)) {
+  umap_paneths[[i]] <- umap_paneths[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.paneths
+} 
+
+grid_paneths <- cowplot::plot_grid(plotlist = umap_paneths,
+                                   ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/umaps_paneths.png",
+       plot = grid_paneths,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+```
+
+
+```{r}
+# Find all marker genes for each cluster [Integrated]
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+
+AllMarkersJ9 <- FindAllMarkers(
+  integrated_j9_all,
+  assay = "SCT",
+  logfc.threshold = 0.25,
+  test.use = "wilcox",
+  min.pct = 0.1,
+  verbose = TRUE,
+  latent.vars = NULL,
+  min.cells.feature = 3,
+  min.cells.group = 3,
+  pseudocount.use = 1,
+  base = 2,
+  return.thresh = 0.01)
+
+write.csv2(AllMarkersJ9, file = "Data output/AllMarkersJ9_integrated.csv")
+
+# Heatmap
+integrated_j9_all$integrated_snn_res.0.5 <- factor(
+  x = integrated_j9_all$integrated_snn_res.0.5,
+  levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 
+             10, 11, 12, 13, 14, 15, 16, 17, 18))
+AllMarkersJ9 %>%
+  group_by(cluster) %>%
+  top_n(n = 10, wt = avg_log2FC) -> top10
+J9_integrated_markers <- DoHeatmap(integrated_j9_all, features = top10$gene)
+
+ggsave("./UMAPs/integrated_j9_all_heatmap_marker.png", 
+       plot = J9_integrated_markers, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+
+
+# Find all marker genes for each cluster [Mock only]
+Idents(mock_j9clus) <- "SCT_snn_res.0.5"
+
+AllMarkersJ9_mock <- FindAllMarkers(
+  mock_j9clus,
+  assay = "SCT",
+  logfc.threshold = 0.25,
+  test.use = "wilcox",
+  min.pct = 0.1,
+  verbose = TRUE,
+  latent.vars = NULL,
+  min.cells.feature = 3,
+  min.cells.group = 3,
+  pseudocount.use = 1,
+  base = 2,
+  return.thresh = 0.01)
+
+write.csv2(AllMarkersJ9_mock, file = "Data output/AllMarkersJ9_mock.csv")
+
+# Heatmap
+mock_j9clus$integrated_snn_res.0.5 <- factor(x = mock_j9clus$SCT_snn_res.0.5,
+                                             levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+AllMarkersJ9_mock %>%
+  group_by(cluster) %>%
+  top_n(n = 10, wt = avg_log2FC) -> top10
+J9_integrated_markers <- DoHeatmap(mock_j9clus, features = top10$gene)
+
+ggsave("./UMAPs/mock_j9clus_heatmap_marker.png", 
+       plot = J9_integrated_markers, 
+       width = 10, height = 10, units = "cm", dpi = 300)
+```
+
+
+```{r}
+# Calculate amount of AdV genes in each cluster
+# integrated_j9_all[["percent.adv"]] <- PercentageFeatureSet(integrated_j9_all, 
+#                                                            pattern = "^AdV-")
+
+df <- FetchData(integrated_j9_all, vars = c("percent.adv", 
+                                            "integrated_snn_res.0.5"))
+df_sum <- df %>%
+  group_by(integrated_snn_res.0.5) %>%
+  summarise(mean_perc_mt = mean(percent.adv), sd_perc_mt = sd(percent.adv))
+df_sum
+
+write.csv2(df_sum, file = "Data output/percentchikv_24hpi_cluster.csv")
+```
+
+
+```{r}
+# subsetting adv5
+#Idents(integrated_j9_all) <- "infection"
+#j9_adv5 <- subset(x = integrated_j9_all, idents = "adv5")
+
+
+VlnPlot(j9_adv5, features = "percent.adv")
+
+col.sc.goi <- scale_color_gradientn(colours = cols2, limits=c(0.0001,100))
+
+umap_adv5_split <- FeaturePlot(j9_adv5, features = "percent.adv",
+                               split.by = "bystander_status",
+                               label = FALSE, combine = FALSE, 
+                               pt.size = 1)
+
+for(i in 1:length(umap_adv5_split)) {
+  umap_adv5_split[[i]] <- umap_adv5_split[[i]] + 
+    NoAxes() + labs(title ="") + 
+    theme(legend.position = "none") + 
+    theme(panel.border =element_blank()) + 
+    col.sc.goi
+}
+
+umap_adv5_split
+
+grid_umap_adv5_split <- cowplot::plot_grid(plotlist = 
+                                             umap_adv5_split, 
+                                           ncol = 2)
+
+ggsave("./UMAPs/UMAP_bystander_adv5.png", 
+       plot = grid_umap_adv5_split, 
+       width = 30, height = 15, units = "cm", dpi = 300)
+
+# subsetting adv40
+#Idents(integrated_j9_all) <- "infection"
+#j9_adv40 <- subset(x = integrated_j9_all, idents = "adv40")
+
+
+VlnPlot(j9_adv40, features = "percent.adv")
+
+col.sc.goi <- scale_color_gradientn(colours = cols2, limits=c(0.0001,80))
+
+umap_adv40_split <- FeaturePlot(j9_adv40, features = "percent.adv",
+                                split.by = "bystander_status",
+                                label = FALSE, combine = FALSE, 
+                                pt.size = 1)
+
+for(i in 1:length(umap_adv40_split)) {
+  umap_adv40_split[[i]] <- umap_adv40_split[[i]] + 
+    NoAxes() + labs(title ="") + 
+    theme(legend.position = "none") + 
+    theme(panel.border =element_blank()) + 
+    col.sc.goi
+}
+
+umap_adv40_split
+
+grid_umap_adv40_split <- cowplot::plot_grid(plotlist = 
+                                              umap_adv40_split, 
+                                            ncol = 2)
+
+ggsave("./UMAPs/UMAP_bystander_adv40.png", 
+       plot = grid_umap_adv40_split, 
+       width = 30, height = 15, units = "cm", dpi = 300)
+
+
+# subsetting adv41
+#Idents(integrated_j9_all) <- "infection"
+#j9_adv41 <- subset(x = integrated_j9_all, idents = "adv41")
+
+
+VlnPlot(j9_adv41, features = "percent.adv")
+
+col.sc.goi <- scale_color_gradientn(colours = cols2, limits=c(0.0001,80))
+
+umap_adv41_split <- FeaturePlot(j9_adv41, features = "percent.adv",
+                                split.by = "bystander_status",
+                                label = FALSE, combine = FALSE, 
+                                pt.size = 1)
+
+for(i in 1:length(umap_adv41_split)) {
+  umap_adv41_split[[i]] <- umap_adv41_split[[i]] + 
+    NoAxes() + labs(title ="") + 
+    theme(legend.position = "none") + 
+    theme(panel.border =element_blank()) + 
+    col.sc.goi
+}
+
+umap_adv41_split
+
+grid_umap_adv41_split <- cowplot::plot_grid(plotlist = 
+                                              umap_adv41_split, 
+                                            ncol = 2)
+
+ggsave("./UMAPs/UMAP_bystander_adv41.png", 
+       plot = grid_umap_adv41_split, 
+       width = 30, height = 15, units = "cm", dpi = 300)
+```
+

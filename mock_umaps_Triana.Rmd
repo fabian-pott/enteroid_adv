@@ -1,0 +1,409 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# Load required packages
+
+# Processing
+library(Seurat)
+library(dplyr)
+library(cowplot)
+library(patchwork)
+library(ggplot2)
+library(tidyverse)
+library(limma)
+# Visualization
+library(RColorBrewer)
+library(rcartocolor)
+
+```
+
+```{r}
+#Defining the color scheme
+
+cols <- carto_pal(7, "Geyser") #rev(brewer.pal(9, 'GnBU')) reverses order
+newcol <- colorRampPalette(cols) #extrapolate inbetween colors
+ncols <- 100 #how many new colors?
+cols2 <- newcol(ncols) #apply the function to get 100 colours
+
+# col.clus <- brewer.pal(8, "Dark2")
+# newcol.clus <- colorRampPalette(col.clus)
+# ncols.clus <- 16
+# col.clus.brewer <- newcol.clus(ncols.clus)
+```
+
+
+```{r}
+# UMAPs of marker genes from Triana et al
+cols_single <- brewer.pal(9, "YlOrRd")[4:8] 
+newcol_single <- colorRampPalette(cols_single)
+ncols <- 100 
+cols2_single <- newcol_single(ncols)
+
+
+################ Enterocytes
+enterocyte_genes <- c("APOC3", "APOA4", "APOA1", "APOB", "FABP6")
+col.sc.enterocytes <- scale_color_gradientn(colours = cols2_single, 
+                                      limits=c(0.0001, 2))
+
+umap_enterocytes <- FeaturePlot(mock_j9clus, 
+                                         features = enterocyte_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_enterocytes)) {
+  umap_enterocytes[[i]] <- umap_enterocytes[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+   # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.enterocytes
+} 
+
+grid_enterocytes <- cowplot::plot_grid(plotlist = umap_enterocytes,
+                                                  ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_enterocytes.png",
+       plot = grid_enterocytes,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+############# immature_immature_enterocytes
+immature_enterocyte_genes <- c("DUOXA2", "TM4SF1", "TFF1", "IFI27", "IFI6")
+col.sc.immature_enterocytes <- scale_color_gradientn(colours = cols2_single, 
+                                            limits=c(0.0001, 5))
+
+umap_immature_enterocytes <- FeaturePlot(mock_j9clus, 
+                                features = immature_enterocyte_genes,
+                                label = FALSE, combine = FALSE, 
+                                pt.size = 0.5)
+
+for(i in 1:length(umap_immature_enterocytes)) {
+  umap_immature_enterocytes[[i]] <- umap_immature_enterocytes[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.immature_enterocytes
+} 
+
+grid_immature_enterocytes <- cowplot::plot_grid(plotlist = umap_immature_enterocytes,
+                                       ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_immature_enterocytes.png",
+       plot = grid_immature_enterocytes,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### enterocyte_progenitors
+enterocyte_progenitor_genes <- c("HSPA5", "RBP2", "CBR1", "GSTA1", "FABP6")
+col.sc.enterocyte_progenitors <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 2.5))
+
+umap_enterocyte_progenitors <- FeaturePlot(mock_j9clus, 
+                                         features = enterocyte_progenitor_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_enterocyte_progenitors)) {
+  umap_enterocyte_progenitors[[i]] <- umap_enterocyte_progenitors[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.enterocyte_progenitors
+} 
+
+grid_enterocyte_progenitors <- cowplot::plot_grid(plotlist = umap_enterocyte_progenitors,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_enterocyte_progenitors.png",
+       plot = grid_enterocyte_progenitors,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### Best4_enterocytes
+Best4_enterocyte_genes <- c("BEST4", "CA7", "SPIB", "POLR2J", "GUCA2A")
+col.sc.Best4_enterocytes <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 2))
+
+umap_Best4_enterocytes <- FeaturePlot(mock_j9clus, 
+                                         features = Best4_enterocyte_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_Best4_enterocytes)) {
+  umap_Best4_enterocytes[[i]] <- umap_Best4_enterocytes[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.Best4_enterocytes
+} 
+
+grid_Best4_enterocytes <- cowplot::plot_grid(plotlist = umap_Best4_enterocytes,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_Best4_enterocytes.png",
+       plot = grid_Best4_enterocytes,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### goblets
+goblet_genes <- c("FCGBP", "GOB5", "SPINK4", "FCGBP", "ZG16")
+col.sc.goblets <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 1.5))
+
+umap_goblets <- FeaturePlot(mock_j9clus, 
+                                         features = goblet_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_goblets)) {
+  umap_goblets[[i]] <- umap_goblets[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.goblets
+} 
+
+grid_goblets <- cowplot::plot_grid(plotlist = umap_goblets,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_goblets.png",
+       plot = grid_goblets,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### enteroendocrines
+enteroendocrine_genes <- c("CHGA", "PYY1", "NTS", "GIP", "MLN")
+col.sc.enteroendocrines <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 1))
+
+umap_enteroendocrines <- FeaturePlot(mock_j9clus, 
+                                         features = enteroendocrine_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_enteroendocrines)) {
+  umap_enteroendocrines[[i]] <- umap_enteroendocrines[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.enteroendocrines
+} 
+
+grid_enteroendocrines <- cowplot::plot_grid(plotlist = umap_enteroendocrines,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_enteroendocrines.png",
+       plot = grid_enteroendocrines,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### stemcells
+stemcell_genes <- c("OLFM4", "LDHB", "NPM1", "NCL", "NAP1L1")
+col.sc.stemcells <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 4))
+
+umap_stemcells <- FeaturePlot(mock_j9clus, 
+                                         features = stemcell_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_stemcells)) {
+  umap_stemcells[[i]] <- umap_stemcells[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.stemcells
+} 
+
+grid_stemcells <- cowplot::plot_grid(plotlist = umap_stemcells,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_stemcells.png",
+       plot = grid_stemcells,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### TAs
+TA_genes <- c("CXCL3", "CXCL1", "CXCL2", "CXCL5", "CCL2")
+col.sc.TAs <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 2.5))
+
+umap_TAs <- FeaturePlot(mock_j9clus, 
+                                         features = TA_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_TAs)) {
+  umap_TAs[[i]] <- umap_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.TAs
+} 
+
+grid_TAs <- cowplot::plot_grid(plotlist = umap_TAs,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_TAs.png",
+       plot = grid_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### cycling_TAs
+cycling_TA_genes <- c("TUBA1B", "MKI67", "NCL", "HIST1H4C", "CENPF")
+col.sc.cycling_TAs <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 2.5))
+
+umap_cycling_TAs <- FeaturePlot(mock_j9clus, 
+                                         features = cycling_TA_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_cycling_TAs)) {
+  umap_cycling_TAs[[i]] <- umap_cycling_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.cycling_TAs
+} 
+
+grid_cycling_TAs <- cowplot::plot_grid(plotlist = umap_cycling_TAs,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_cycling_TAs.png",
+       plot = grid_cycling_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### secretory_TAs
+secretory_TA_genes <- c("HES6", "STMN1", "SPINK4", "PRSS2", "SOX4")
+col.sc.secretory_TAs <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 3.5))
+
+umap_secretory_TAs <- FeaturePlot(mock_j9clus, 
+                                         features = secretory_TA_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_secretory_TAs)) {
+  umap_secretory_TAs[[i]] <- umap_secretory_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.secretory_TAs
+} 
+
+grid_secretory_TAs <- cowplot::plot_grid(plotlist = umap_secretory_TAs,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_secretory_TAs.png",
+       plot = grid_secretory_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### stressed_TAs
+stressed_TA_genes <- c("HSPA1A", "HSPA1B", "HSPA6", "HSPH1", "DNAJB1")
+col.sc.stressed_TAs <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 2))
+
+umap_stressed_TAs <- FeaturePlot(mock_j9clus, 
+                                         features = stressed_TA_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_stressed_TAs)) {
+  umap_stressed_TAs[[i]] <- umap_stressed_TAs[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.stressed_TAs
+} 
+
+grid_stressed_TAs <- cowplot::plot_grid(plotlist = umap_stressed_TAs,
+                                                ncol = 3, nrow =2)
+
+
+ggsave("./UMAPs/Triana/Mock/umaps_stressed_TAs.png",
+       plot = grid_stressed_TAs,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+########### tufts
+tuft_genes <- c("AZGP1", "MATK", "LRMP", "SH2D6", "RGS13")
+col.sc.tufts <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 3))
+
+umap_tufts <- FeaturePlot(mock_j9clus, 
+                                         features = tuft_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_tufts)) {
+  umap_tufts[[i]] <- umap_tufts[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.tufts
+} 
+
+grid_tufts <- cowplot::plot_grid(plotlist = umap_tufts,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_tufts.png",
+       plot = grid_tufts,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+
+########### paneths
+paneth_genes <- c("DEF6", "REG3A", "DEFA5", "PLA2G2A", "PRSS2")
+col.sc.paneths <- scale_color_gradientn(colours = cols2_single, 
+                                                     limits=c(0.0001, 4))
+
+umap_paneths <- FeaturePlot(mock_j9clus, 
+                                         features = paneth_genes,
+                                         label = FALSE, combine = FALSE, 
+                                         pt.size = 0.5)
+
+for(i in 1:length(umap_paneths)) {
+  umap_paneths[[i]] <- umap_paneths[[i]] + 
+    #NoAxes() + 
+    #labs(title ="") + 
+    theme(legend.position = "none") + 
+    # theme(panel.border =element_blank()) + 
+    theme(plot.background = element_rect(fill = "transparent", color = NA)) +
+    col.sc.paneths
+} 
+
+grid_paneths <- cowplot::plot_grid(plotlist = umap_paneths,
+                                                ncol = 3, nrow =2)
+
+ggsave("./UMAPs/Triana/Mock/umaps_paneths.png",
+       plot = grid_paneths,
+       width = 60, height =30, units = "cm", dpi = 300)
+
+```

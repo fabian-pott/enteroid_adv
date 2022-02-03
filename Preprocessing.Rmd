@@ -1,0 +1,702 @@
+---
+title: "Preprocessing of adv infected enteroids, 24 hpi samples"
+output: html_notebook
+---
+
+
+```{r,results='hide'}
+# Load required packages
+
+# Processing
+library(Seurat)
+library(dplyr)
+library(cowplot)
+library(patchwork)
+library(ggplot2)
+library(sctransform)
+# Visualization
+library(RColorBrewer)
+library(rcartocolor)
+```
+
+```{r}
+############### Preprocessing single samples #######################
+```
+
+```{r}
+################ load data ################
+
+setwd("C:/Users/pottf/Desktop/Current_Projects/Enteroid_Organoids/Analysis")
+
+#### Mock
+mock_j9 <- Read10X("./outs/outs_J9_Mock/filtered_feature_bc_matrix")
+mock_j9 <- CreateSeuratObject(mock_j9, 
+                              project = "J9.mock", 
+                              min.cells = 3, min.features = 200, 
+                              names.delim="-")
+# Show data
+head(mock_j9@meta.data,5)
+# Save mock_j9.rds
+saveRDS(mock_j9, file = "./RDS_single/mock_j9.RDS")
+
+
+
+#### AdV 5
+adv5_j9 <- Read10X("./outs/outs_J9_AdV5/filtered_feature_bc_matrix")
+adv5_j9 <- CreateSeuratObject(adv5_j9, 
+                              project = "J9.adv5", 
+                              min.cells = 3, min.features = 200, 
+                              names.delim="-")
+# Show data
+head(adv5_j9@meta.data,5)
+# Save mock_j9.rds
+saveRDS(adv5_j9, file = "./RDS_single/adv5_j9.RDS")
+
+
+
+#### AdV 40
+adv40_j9 <- Read10X("./outs/outs_J9_AdV40/filtered_feature_bc_matrix")
+adv40_j9 <- CreateSeuratObject(adv40_j9, 
+                               project = "J9.adv40", 
+                               min.cells = 3, min.features = 200, 
+                               names.delim="-")
+# Show data
+head(adv40_j9@meta.data,5)
+# Save mock_j9.rds
+saveRDS(adv40_j9, file = "./RDS_single/adv40_j9.RDS")
+
+
+
+#### AdV41
+adv41_j9 <- Read10X("./outs/outs_J9_AdV41/filtered_feature_bc_matrix")
+adv41_j9 <- CreateSeuratObject(adv41_j9, 
+                               project = "J9.adv41", 
+                               min.cells = 3, min.features = 200, 
+                               names.delim="-")
+# Show data
+head(adv41_j9@meta.data,5)
+# Save mock_j9.rds
+saveRDS(adv41_j9, file = "./RDS_single/adv41_j9.RDS")
+```
+
+```{r}
+# Deterime percent MT DNA reads as well as nFeatures
+# Add column to metadata describing percent mt (very high % MT DNA = dead cell)
+mock_j9[["percent.mt"]] <- PercentageFeatureSet(mock_j9, 
+                                                pattern = "^MT-")
+adv5_j9[["percent.mt"]] <- PercentageFeatureSet(adv5_j9, 
+                                                pattern = "^MT-")
+adv40_j9[["percent.mt"]] <- PercentageFeatureSet(adv40_j9, 
+                                                 pattern = "^MT-")
+adv41_j9[["percent.mt"]] <- PercentageFeatureSet(adv41_j9, 
+                                                 pattern = "^MT-")
+
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+```
+
+```{r}
+################## Mock ##################
+
+# Create single plots for quality control and save them
+nfeature_rna_mock <- VlnPlot(mock_j9, features = "nFeature_RNA") +
+  geom_hline(yintercept=200, linetype="dashed", color = "red") +
+  geom_hline(yintercept=2000, linetype="dashed", color = "red")+
+  theme(legend.position = "none")
+
+ncount_rna_mock <- VlnPlot(mock_j9, features = "nCount_RNA") +
+  theme(legend.position = "none")
+
+percent_mt_mock <- VlnPlot(mock_j9, features = "percent.mt") +
+  geom_hline(yintercept=20, linetype="dashed", color = "red") +
+  theme(legend.position = "none")
+
+qc_mock_j9 <- plot_grid(nfeature_rna_mock, ncount_rna_mock, 
+                        percent_mt_mock, ncol = 3)
+
+qc_mock_j9
+
+ggsave("./Preprocessing/qc_mock_j9.png", plot = qc_mock_j9, 
+       width = 20,height = 15, units = "cm")
+```
+
+```{r}
+# Filter cells based on criteria
+mock_j9sel <-subset(mock_j9, 
+                    subset= nFeature_RNA >200 & 
+                      percent.mt < 20 & 
+                      nFeature_RNA < 2000)
+
+# Score cell cycle
+mock_j9sel <- CellCycleScoring(mock_j9, s.features = s.genes, 
+                               g2m.features = g2m.genes, set.ident = TRUE)
+
+head(mock_j9sel[[]])
+
+# Check for AdV gene expression pattern
+mock_j9clus[["percent.adv"]] <- PercentageFeatureSet(mock_j9sel,
+                                                     pattern = "^AdV-")
+
+
+#check the percentage of adv reads (should be 0)
+percent_adv_post <- VlnPlot(mock_j9sel, features = "percent.adv") +
+  theme(legend.position = "none")
+percent_adv_post
+
+#m SCTtransform data and regress out cell cycle scores
+mock_j9sel <- SCTransform(mock_j9sel, 
+                          vars.to.regress = c("S.Score", "G2M.Score"),
+                          verbose = FALSE)
+
+# Save RDS
+saveRDS(mock_j9sel, file = "./RDS_single/mock_j9sel.RDS")
+```
+
+```{r}
+# Run PCA and generate 30 pcs
+mock_j9sel <- RunPCA(mock_j9sel, npcs=30, verbose = FALSE)
+
+# Select how many PCs are needed
+ElbowPlot(mock_j9sel)
+```
+
+```{r}
+# Generate umap and cluster cells
+mock_j9clus <- RunUMAP(mock_j9sel, reduction = "pca", dims = 1:15, 
+                       verbose = FALSE)
+mock_j9clus <- FindNeighbors(mock_j9clus, reduction = "pca", dims = 1:15, 
+                             verbose = FALSE)
+mock_j9clus <- FindClusters(mock_j9clus, resolution = 0.5, verbose = FALSE)
+
+# Create dimplot - visualise umap
+mock24_j9_umap <- DimPlot(mock_j9clus,
+                          reduction = "umap", label = FALSE,
+                          pt.size = 1, label.size = 6, 
+                          cols = c("#51574a", "#447c69", "#74c493",
+                                   "#8e8c6d", "#e4bf80", "#e9d78e",
+                                   "#e2975d", "#f19670", "#e16552",
+                                   "#c94a53", "#be5168", "#a34974",
+                                   "#993767", "#65387d", "#4e2472",
+                                   "#9163b6", "#e279a3", "#e0598b",
+                                   "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+mock24_j9_umap
+
+ggsave("./Preprocessing/mock_j9_DimPlot.png", plot = mock24_j9_umap, 
+       width = 20, height = 15, units = "cm")
+
+# Save RDS
+saveRDS(mock_j9clus, file = "./RDS_single/mock_j9clus.RDS")
+
+DefaultAssay(mock_j9clus) <- "SCT"
+```
+
+```{r}
+############# adv5 ###################
+
+nfeature_rna_adv5 <- VlnPlot(adv5_j9, features = "nFeature_RNA") +
+  geom_hline(yintercept=200, linetype="dashed", color = "red") +
+  geom_hline(yintercept=7000, linetype="dashed", color = "red")+
+  theme(legend.position = "none")
+
+ncount_rna_adv5 <- VlnPlot(adv5_j9, features = "nCount_RNA") +
+  theme(legend.position = "none")
+
+percent_mt_adv5 <- VlnPlot(adv5_j9, features = "percent.mt") +
+  geom_hline(yintercept=20, linetype="dashed", color = "red") +
+  theme(legend.position = "none")
+
+qc_adv5_j9 <- plot_grid(nfeature_rna_adv5, ncount_rna_adv5, 
+                        percent_mt_adv5, ncol = 3)
+
+qc_adv5_j9
+
+ggsave("./Preprocessing/qc_adv5_j9.png", plot = qc_adv5_j9, width = 20, 
+       height = 15, units = "cm")
+```
+
+```{r}
+#filter cells based on criteria
+adv5_j9sel <-subset(adv5_j9, 
+                    subset= nFeature_RNA >200 & 
+                      percent.mt < 20 & 
+                      nFeature_RNA < 7000)
+
+# Score cell cycle
+adv5_j9sel <- CellCycleScoring(adv5_j9, s.features = s.genes, 
+                               g2m.features = g2m.genes, set.ident = TRUE)
+
+#m SCTtransform data and regress out cell cycle scores
+adv5_j9sel <- SCTransform(adv5_j9sel, 
+                          vars.to.regress = c("S.Score", "G2M.Score"),
+                          verbose = FALSE)
+
+
+# Check for AdV gene expression pattern
+adv5_j9sel[["percent.adv"]] <- PercentageFeatureSet(adv5_j9sel,
+                                                    pattern = "^AdV-")
+
+
+#check the percentage of adv reads
+percent_adv5 <- VlnPlot(adv5_j9sel, features = "percent.adv") +
+  theme(legend.position = "none")
+percent_adv5
+
+# Save RDS
+saveRDS(adv5_j9sel, file = "./RDS_single/adv5_j9sel.RDS")
+```
+
+```{r}
+# Run PCA and generate 30 pcs
+adv5_j9sel <- RunPCA(adv5_j9sel, npcs=30, verbose = FALSE)
+# Select how many PCs are needed
+ElbowPlot(adv5_j9sel)
+```
+
+```{r}
+#generate umap and cluster cells
+adv5_j9sel <- RunUMAP(adv5_j9sel, reduction = "pca", dims = 1:15, 
+                      verbose = FALSE)
+adv5_j9sel <- FindNeighbors(adv5_j9sel, reduction = "pca", dims = 1:15, 
+                            verbose = FALSE)
+adv5_j9clus <- FindClusters(adv5_j9sel, resolution = 0.5, verbose = FALSE)
+
+#create dimplot - visualise umap
+adv5_j9_umap <- DimPlot(adv5_j9clus,
+                        reduction = "umap", label = FALSE,
+                        pt.size = 1, label.size = 6, 
+                        cols = c("#51574a", "#447c69", "#74c493",
+                                 "#8e8c6d", "#e4bf80", "#e9d78e",
+                                 "#e2975d", "#f19670", "#e16552",
+                                 "#c94a53", "#be5168", "#a34974",
+                                 "#993767", "#65387d", "#4e2472",
+                                 "#9163b6", "#e279a3", "#e0598b",
+                                 "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+adv5_j9_umap
+
+ggsave("./Preprocessing/adv5_j9_DimPlot.png", plot = adv5_j9_umap, 
+       width = 20, height = 15, units = "cm")
+
+# Save RDS
+DefaultAssay(adv5_j9clus) <- "SCT"
+saveRDS(adv5_j9clus, file = "./RDS_single/adv5_j9clus.RDS")
+```
+
+```{r}
+################### AdV 40 #######################
+
+nfeature_rna_moi10 <- VlnPlot(adv40_j9, features = "nFeature_RNA") +
+  geom_hline(yintercept=200, linetype="dashed", color = "red") +
+  theme(legend.position = "none")
+
+ncount_rna_moi10 <- VlnPlot(adv40_j9, features = "nCount_RNA") +
+  theme(legend.position = "none")
+
+percent_mt_moi10 <- VlnPlot(adv40_j9, features = "percent.mt") +
+  geom_hline(yintercept=20, linetype="dashed", color = "red") +
+  theme(legend.position = "none")
+
+qc_adv40_j9 <- plot_grid(nfeature_rna_moi10, ncount_rna_moi10, 
+                         percent_mt_moi10, ncol = 3)
+
+qc_adv40_j9
+
+ggsave("./Preprocessing/qc_adv40_j9.png", plot = qc_adv40_j9, width = 20, 
+       height = 15, 
+       units = "cm")
+```
+
+```{r}
+#filter cells based on criteria
+adv40_j9sel <-subset(adv40_j9, 
+                     subset= nFeature_RNA >200 & 
+                       percent.mt < 20 & 
+                       nFeature_RNA < 7000)
+
+# Score cell cycle
+adv40_j9sel <- CellCycleScoring(adv40_j9, s.features = s.genes, 
+                                g2m.features = g2m.genes, set.ident = TRUE)
+
+#m SCTtransform data and regress out cell cycle scores
+adv40_j9sel <- SCTransform(adv40_j9sel, 
+                           vars.to.regress = c("S.Score", "G2M.Score"),
+                           verbose = FALSE)
+
+# Check for AdV gene expression pattern
+adv40_j9sel[["percent.adv"]] <- PercentageFeatureSet(adv40_j9sel,
+                                                     pattern = "^AdV-")
+
+
+#check the percentage of adv reads
+percent_adv40 <- VlnPlot(adv40_j9sel, features = "percent.adv") +
+  theme(legend.position = "none")
+percent_adv40
+
+# Save RDS
+saveRDS(adv40_j9sel, file = "./RDS_single/adv40_j9sel.RDS")
+```
+
+```{r}
+# Run PCA and generate 30 pcs
+adv40_j9sel <- RunPCA(adv40_j9sel, npcs=30, verbose = FALSE)
+# Select how many PCs are needed
+ElbowPlot(adv40_j9sel)
+```
+
+```{r}
+#generate umap and cluster cells
+adv40_j9sel <- RunUMAP(adv40_j9sel, reduction = "pca", dims = 1:15, 
+                       verbose = FALSE)
+adv40_j9sel <- FindNeighbors(adv40_j9sel, reduction = "pca", dims = 1:15, 
+                             verbose = FALSE)
+adv40_j9clus <- FindClusters(adv40_j9sel, resolution = 0.5, verbose = FALSE)
+
+#create dimplot - visualise umap
+adv40_j9_umap <- DimPlot(adv40_j9clus,
+                         reduction = "umap", label = FALSE,
+                         pt.size = 1, label.size = 6, 
+                         cols = c("#51574a", "#447c69", "#74c493",
+                                  "#8e8c6d", "#e4bf80", "#e9d78e",
+                                  "#e2975d", "#f19670", "#e16552",
+                                  "#c94a53", "#be5168", "#a34974",
+                                  "#993767", "#65387d", "#4e2472",
+                                  "#9163b6", "#e279a3", "#e0598b",
+                                  "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+adv40_j9_umap
+
+ggsave("./Preprocessing/adv40_j9_DimPlot.png", plot = adv40_j9_umap, 
+       width = 20, height = 15, units = "cm")
+
+# Save RDS
+DefaultAssay(adv40_j9clus) <- "SCT"
+saveRDS(adv40_j9clus, file = "./RDS_single/adv40_j9clus.RDS")
+```
+
+```{r}
+################### AdV 41 #######################
+
+nfeature_rna_moi10 <- VlnPlot(adv41_j9, features = "nFeature_RNA") +
+  geom_hline(yintercept=200, linetype="dashed", color = "red") +
+  theme(legend.position = "none")
+
+ncount_rna_moi10 <- VlnPlot(adv41_j9, features = "nCount_RNA") +
+  theme(legend.position = "none")
+
+percent_mt_moi10 <- VlnPlot(adv41_j9, features = "percent.mt") +
+  geom_hline(yintercept=20, linetype="dashed", color = "red") +
+  theme(legend.position = "none")
+
+qc_adv41_j9 <- plot_grid(nfeature_rna_moi10, ncount_rna_moi10, 
+                         percent_mt_moi10, ncol = 3)
+
+qc_adv41_j9
+
+ggsave("./Preprocessing/qc_adv41_j9.png", plot = qc_adv41_j9, width = 20, 
+       height = 15, 
+       units = "cm")
+```
+
+```{r}
+#filter cells based on criteria
+adv41_j9sel <-subset(adv41_j9, 
+                     subset= nFeature_RNA >200 & 
+                       percent.mt < 20 & 
+                       nFeature_RNA < 7000)
+
+# Score cell cycle
+adv41_j9sel <- CellCycleScoring(adv41_j9, s.features = s.genes, 
+                                g2m.features = g2m.genes, set.ident = TRUE)
+
+#m SCTtransform data and regress out cell cycle scores
+adv41_j9sel <- SCTransform(adv41_j9sel, 
+                           vars.to.regress = c("S.Score", "G2M.Score"),
+                           verbose = FALSE)
+
+# Check for AdV gene expression pattern
+adv41_j9sel[["percent.adv"]] <- PercentageFeatureSet(adv41_j9sel,
+                                                     pattern = "^AdV-")
+
+
+#check the percentage of adv reads
+percent_adv41 <- VlnPlot(adv41_j9sel, features = "percent.adv") +
+  theme(legend.position = "none")
+percent_adv41
+
+# Save RDS
+saveRDS(adv41_j9sel, file = "./RDS_single/adv41_j9sel.RDS")
+```
+
+```{r}
+# Run PCA and generate 30 pcs
+adv41_j9sel <- RunPCA(adv41_j9sel, npcs=30, verbose = FALSE)
+# Select how many PCs are needed
+ElbowPlot(adv41_j9sel)
+```
+
+```{r}
+#generate umap and cluster cells
+adv41_j9sel <- RunUMAP(adv41_j9sel, reduction = "pca", dims = 1:15, 
+                       verbose = FALSE)
+adv41_j9sel <- FindNeighbors(adv41_j9sel, reduction = "pca", dims = 1:15, 
+                             verbose = FALSE)
+adv41_j9clus <- FindClusters(adv41_j9sel, resolution = 0.5, verbose = FALSE)
+
+#create dimplot - visualise umap
+adv41_j9_umap <- DimPlot(adv41_j9clus,
+                         reduction = "umap", label = FALSE,
+                         pt.size = 1, label.size = 6, 
+                         cols = c("#51574a", "#447c69", "#74c493",
+                                  "#8e8c6d", "#e4bf80", "#e9d78e",
+                                  "#e2975d", "#f19670", "#e16552",
+                                  "#c94a53", "#be5168", "#a34974",
+                                  "#993767", "#65387d", "#4e2472",
+                                  "#9163b6", "#e279a3", "#e0598b",
+                                  "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+adv41_j9_umap
+
+ggsave("./Preprocessing/adv41_j9_DimPlot.png", plot = adv41_j9_umap, 
+       width = 20, height = 15, units = "cm")
+
+# Save RDS
+DefaultAssay(adv41_j9clus) <- "SCT"
+saveRDS(adv41_j9clus, file = "./RDS_single/adv41_j9clus.RDS")
+```
+
+```{r}
+############### Integration #######################
+```
+
+```{r}
+# Adding metadata for infection status to the samples
+mock_j9clus$infection <- 'mock'
+adv5_j9clus$infection <- 'adv5'
+adv40_j9clus$infection <- 'adv40'
+adv41_j9clus$infection <- 'adv41'
+
+mock_j9clus$donor <- 'J9'
+adv5_j9clus$donor<- 'J9'
+adv40_j9clus$donor <- 'J9'
+adv41_j9clus$donor <- 'J9'
+```
+
+```{r}
+# Integration of Mock, adv5, and MOI 10 datasets
+# Requires the single datasets to be SCTransformed -> use x_24sel oder x_24clus
+
+# Set RAM capacity to maximum
+options(future.globals.maxSize = 4000 * 1024^2)
+memory.limit(9999999999)
+
+# SCTransform pipeline integration
+adv.features <- SelectIntegrationFeatures(object.list = c(mock_j9clus,
+                                                          adv5_j9clus, 
+                                                          adv40_j9clus,
+                                                          adv41_j9clus), 
+                                          nfeatures = 3000)
+
+adv.list <- PrepSCTIntegration(object.list = c(mock_j9clus, 
+                                               adv5_j9clus, 
+                                               adv40_j9clus,
+                                               adv41_j9clus), 
+                               anchor.features = adv.features, 
+                               verbose = FALSE)
+
+adv.anchors <- FindIntegrationAnchors(object.list = adv.list, 
+                                      normalization.method = "SCT", 
+                                      anchor.features = adv.features, 
+                                      verbose = FALSE)
+
+integrated_j9 <- IntegrateData(anchorset = adv.anchors, 
+                               normalization.method = "SCT", 
+                               verbose = FALSE)
+
+
+# Saving the integrated file without clustering
+saveRDS(integrated_j9, file = "./RDS_integrated/integrated_j9.RDS")
+```
+
+```{r}
+# Setting the default assay to integrated for clustering
+# DefaultAssay(integrated_j9) <- "integrated"
+
+# Run the standard workflow for visualization and clustering
+integrated_j9 <- RunPCA(integrated_j9, npcs = 50, 
+                        verbose = FALSE)
+
+ElbowPlot(integrated_j9, 50)
+
+
+# Checking the umap to find a good amount of dimensions
+DimHeatmap(integrated_j9, dims = 1:4, cells = 500, balanced = TRUE)
+DimHeatmap(integrated_j9, dims = 5:8, cells = 500, balanced = TRUE)
+DimHeatmap(integrated_j9, dims = 9:12, cells = 500, balanced = TRUE)
+DimHeatmap(integrated_j9, dims = 13:16, cells = 500, balanced = TRUE)
+DimHeatmap(integrated_j9, dims = 17:20, cells = 500, balanced = TRUE)
+```
+
+```{r}
+# t-SNE and Clustering
+integrated_j9_clus <- RunUMAP(integrated_j9, 
+                              reduction = "pca", dims = 1:20)
+
+integrated_j9_clus <- FindNeighbors(integrated_j9_clus, 
+                                    reduction = "pca", dims = 1:20)
+
+integrated_j9_all <- FindClusters(integrated_j9_clus, 
+                                  resolution = 0.5)
+
+# UMAP colored by infection status
+Idents(integrated_j9_all) <- "infection"
+
+integrated_j9_umap_infection <-DimPlot(integrated_j9_all,
+                                       reduction = "umap", label = FALSE,
+                                       pt.size = 1, label.size = 6, 
+                                       split.by = "infection",
+                                       cols = c("#f4a261", "#2a9d8f", 
+                                                "#264653", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+integrated_j9_umap_infection
+
+
+# UMAP colored by cluster
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+
+integrated_j9_umap_cluster <-DimPlot(integrated_j9_all,
+                                     reduction = "umap", label = FALSE,
+                                     pt.size = 1, label.size = 6, 
+                                     cols = c("#51574a", "#447c69", "#74c493",
+                                              "#8e8c6d", "#e4bf80", "#e9d78e",
+                                              "#e2975d", "#f19670", "#e16552",
+                                              "#c94a53", "#be5168", "#a34974",
+                                              "#993767", "#65387d", "#4e2472",
+                                              "#9163b6", "#e279a3", "#e0598b",
+                                              "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+integrated_j9_umap_cluster
+
+ggsave("./UMAPs/integrated_j9_cluster.png", 
+       plot = integrated_j9_umap_cluster, 
+       width = 20, height = 15, units = "cm", dpi = 300)
+
+# Changing the Default Assay type to SCT for visualization
+DefaultAssay(integrated_j9_all) <- "SCT"
+
+# Saving clustered file
+saveRDS(integrated_j9_all,
+        file = "./RDS_integrated/integrated_j9_clus.RDS")
+```
+
+```{r}
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+
+adv.markers <- FindAllMarkers(integrated_j9_all, only.pos = TRUE, 
+                              min.pct = 0.25, logfc.threshold = 0.25)
+
+adv.markers %>%
+  group_by(cluster) %>%
+  top_n(n = 10, wt = avg_log2FC) -> top10
+adv_clus_marker <- DoHeatmap(integrated_j9_all, features = top10$gene) + 
+  NoLegend()
+
+
+```
+
+
+```{r}
+# Adding Metadata for adv RNA level
+
+# creating subsets for infection status and low/high adv RNA combined
+
+Idents(integrated_j9_all) <- "infection"
+integrated_j9_all[["percent.adv"]] <- PercentageFeatureSet(integrated_j9_all, 
+                                                           pattern = "^AdV-")
+VlnPlot(integrated_j9_all, features = "percent.adv")
+
+adv5_infected <- WhichCells(object = integrated_j9_all, idents = "adv5",
+                            expression = percent.adv > 0)
+adv5_bystander <- WhichCells(object = integrated_j9_all, idents = "adv5",
+                             expression = percent.adv == 0)
+adv40_infected <- WhichCells(object = integrated_j9_all, idents = "adv40",
+                             expression = percent.adv > 0)
+adv40_bystander <- WhichCells(object = integrated_j9_all, idents = "adv40",
+                              expression = percent.adv == 0)
+adv41_infected <- WhichCells(object = integrated_j9_all, idents = "adv41",
+                             expression = percent.adv > 0)
+adv41_bystander <- WhichCells(object = integrated_j9_all, idents = "adv41",
+                              expression = percent.adv == 0)
+mock <- WhichCells(object = integrated_j9_all, idents = "mock",
+                   expression = percent.adv == 0)
+
+
+# calculating the number of cells in each subset
+
+length(adv5_infected)
+length(adv5_bystander)
+length(adv40_infected)
+length(adv40_bystander)
+length(adv41_infected)
+length(adv41_bystander)
+length(mock)
+
+# creating metadata for each cell with the information which MOI and adv RNA low/high
+
+integrated_j9_all[["bystander_status"]] <- ifelse(rownames(integrated_j9_all@meta.data) %in%
+                                                  adv5_infected, "adv5_infected",
+                              ifelse(rownames(integrated_j9_all@meta.data) %in% 
+                              adv5_bystander, "adv5_bystander",
+                              ifelse(rownames(integrated_j9_all@meta.data) %in% 
+                              adv40_infected, "adv40_infected",
+                                                                ifelse(rownames(integrated_j9_all@meta.data) %in% adv40_bystander, 
+       "adv40_bystander",
+ifelse(rownames(integrated_j9_all@meta.data) %in% adv41_infected, 
+       "adv41_infected",
+ifelse(rownames(integrated_j9_all@meta.data) %in% adv41_bystander, 
+       "adv41_bystander",
+ifelse(rownames(integrated_j9_all@meta.data) %in% mock, "mock", 
+       "undefined")))))))
+
+# Check for adv RNA amount in each subset
+VlnPlot(integrated_j9_all, features = "percent.adv", 
+        split.by = "bystander_status",
+        cols = c("#f4a261", "#2a9d8f", "#f4a261", 
+                 "#2a9d8f", "#f4a261", "#2a9d8f","#264653"),
+        pt.size = 0)
+```
+
+```{r}
+# Add interferon module score
+# Score cells depending on their expression of the Reactome IFN signalling genes
+
+DefaultAssay(integrated_j9_clus) <- "SCT"
+Idents(integrated_j9_clus) <- "infection"
+
+ifn_sig <- read.csv(file="Reactome_interferon_signalling.csv")
+ifn_sig <- as.vector(ifn_sig[,1])
+ifn_sig<- list(c(print(ifn_sig)))
+head(ifn_sig)
+
+integrated_j9_clus <- AddModuleScore(object = integrated_j9_clus, 
+                                     features = ifn_sig, ctrl = 100, 
+                                     name = 'ifn_sig', assay="SCT")
+
+head(integrated_j9_clus[[]])
+
+VlnPlot(integrated_j9_clus, features = "ifn_sig1", 
+        split.by = "infection",  
+        cols = c("#f4a261", "#2a9d8f", "#2a9d8f", "#264653", "#264653"),
+        pt.size = 0)
+```
+
+
+```{r}
+# save file with metadata for infection and for chikrnalvl + IFN module score
+saveRDS(integrated_j9_all, file = "integrated_j9_all.RDS")
+```
+
+
+
