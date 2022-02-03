@@ -1,0 +1,270 @@
+---
+title: "Testing of different approaches for DEG testing"
+output: html_notebook
+---
+
+
+```{r,results='hide'}
+# Load required packages
+
+# Processing
+library(Seurat)
+library(dplyr)
+library(cowplot)
+library(patchwork)
+library(ggplot2)
+library(sctransform)
+library(limma)
+# Visualization
+library(RColorBrewer)
+library(rcartocolor)
+```
+
+
+```{r}
+## Infected samples (all cells) vs Mock
+
+Idents(integrated_j9_all) <- "infection"
+
+# AdV5 vs Mock
+adv.mock_adv5 <- FindMarkers(integrated_j9_all, ident.1 = "adv5",
+                             ident.2 = "mock", only.pos = F, 
+                             min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv.mock_adv5, file = "Data output/DEG_mock_adv5.csv")
+
+
+# AdV40 vs Mock
+adv.mock_adv40 <- FindMarkers(integrated_j9_all, ident.1 = "adv40",
+                              ident.2 = "mock", only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv.mock_adv40, file = "Data output/DEG_mock_adv40.csv")
+
+
+# AdV41 vs Mock
+adv.mock_adv41 <- FindMarkers(integrated_j9_all, ident.1 = "adv41",
+                              ident.2 = "mock", only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv.mock_adv41, file = "Data output/DEG_mock_adv41.csv")
+```
+
+```{r}
+## Infected vs bystander
+
+Idents(integrated_j9_all) <- "bystander_status"
+
+# AdV5 infected vs bystander
+adv5.inf_byst <- FindMarkers(integrated_j9_all, ident.1 = "adv5_infected",
+                             ident.2 = "adv5_bystander", only.pos = F, 
+                             min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv5.inf_byst, file = "Data output/DEG_adv5_infbyst.csv")
+
+
+# AdV40 infected vs bystander
+adv40.inf_byst <- FindMarkers(integrated_j9_all, ident.1 = "adv40_infected",
+                              ident.2 = "adv40_bystander", only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv40.inf_byst, file = "Data output/DEG_adv40_infbyst.csv")
+
+
+# AdV41 infected vs bystander
+adv41.inf_byst <- FindMarkers(integrated_j9_all, ident.1 = "adv41_infected",
+                              ident.2 = "adv41_bystander", only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv41.inf_byst, file = "Data output/DEG_adv41_infbyst.csv")
+```
+
+
+```{r}
+## Infected cells (with viral RNA) against Mock
+
+Idents(integrated_j9_all) <- "bystander_status"
+
+# AdV5 infected vs mock
+adv5.inf_mock <- FindMarkers(integrated_j9_all, ident.1 = "adv5_infected",
+                             ident.2 = "mock", only.pos = F, 
+                             min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv5.inf_mock, file = "Data output/DEG_adv5_infmock.csv")
+
+
+# AdV40 infected vs mock
+adv40.inf_mock <- FindMarkers(integrated_j9_all, ident.1 = "adv40_infected",
+                              ident.2 = "mock", only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv40.inf_mock, file = "Data output/DEG_adv40_infmock.csv")
+
+
+# AdV41 infected vs mock
+adv41.inf_mock <- FindMarkers(integrated_j9_all, ident.1 = "adv41_infected",
+                              ident.2 = "mock", only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(adv41.inf_mock, file = "Data output/DEG_adv41_infmock.csv")
+```
+
+
+```{r}
+# checking for AdV specific clusters
+
+# checking for percent adv
+Idents(integrated_j9_all) <- "infection"
+
+VlnPlot_goi <- VlnPlot(integrated_j9_all, features = "percent.adv", 
+                       idents = "adv5",
+                       split.by = "integrated_snn_res.0.5",
+                       cols = c("#f4a261", "#f4a261", 
+                                "#2a9d8f", "#2a9d8f", "#2a9d8f","#2a9d8f", 
+                                "#264653", "#264653", "#264653", "#264653"),
+                       pt.size = 0) + 
+  stat_summary(fun = median, geom='point', size = 7, 
+               colour = "black", shape = 95) +
+  theme(legend.position = "none")
+
+VlnPlot_goi 
+
+
+# check number of cells per cluster per sample
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+cell_counts_persample <- table(Idents(integrated_j9_all), 
+                               integrated_j9_all$infection)
+write.csv2(cell_counts_persample, file = "./Data output/cell_counts.csv")
+
+
+
+# DEG testing between AdV5 specific clusters and the rest
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+adv5.spec <- FindMarkers(integrated_j9_all, ident.1 = c(9, 13, 14, 15, 16),
+                         ident.2 = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 
+                                     12, 17, 18), only.pos = F, 
+                         min.pct = 0.1, logfc.threshold = 0.25)
+write.csv2(adv5.spec, file = "./Data output/DEG_adv5_spec.csv")
+
+# DEG testing between AdV40 specific clusters and the rest
+adv40.spec <- FindMarkers(integrated_j9_all, ident.1 = c(3, 10, 12),
+                          ident.2 = c(0, 1, 2, 4, 5, 6, 7, 8,
+                                      9, 11, 13, 14, 15, 16, 17, 18),
+                          only.pos = F, 
+                          min.pct = 0.1, logfc.threshold = 0.25)
+write.csv2(adv40.spec, file = "./Data output/DEG_adv40_spec.csv")
+
+
+
+## work specifically with only one sample
+
+## subsetting adv5
+Idents(integrated_j9_all) <- "infection"
+j9_adv5 <- subset(x = integrated_j9_all, idents = "adv5")
+
+Idents(j9_adv5) <- "integrated_snn_res.0.5"
+adv5only.spec <- FindMarkers(j9_adv5, ident.1 = c(9, 13, 14, 15, 16),
+                             ident.2 = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 
+                                         10, 11, 17, 18),
+                             only.pos = F, 
+                             min.pct = 0.1, logfc.threshold = 0.25)
+write.csv2(adv5only.spec, file = "./Data output/DEG_adv5only_spec.csv")
+
+# subsetting adv40
+Idents(integrated_j9_all) <- "infection"
+j9_adv40 <- subset(x = integrated_j9_all, idents = "adv40")
+
+Idents(j9_adv40) <- "integrated_snn_res.0.5"
+adv40only.spec <- FindMarkers(j9_adv40, ident.1 = c(3, 10, 12),
+                              ident.2 = c(0, 1, 2, 4, 5, 6, 7, 8,
+                                          9, 11, 13, 16, 17, 18),
+                              only.pos = F, 
+                              min.pct = 0.1, logfc.threshold = 0.25)
+write.csv2(adv40only.spec, file = "./Data output/DEG_adv40only_spec.csv")
+
+
+
+# subsetting adv40
+Idents(integrated_j9_all) <- "infection"
+j9_adv41 <- subset(x = integrated_j9_all, idents = "adv41")
+
+
+
+```
+
+```{r}
+# Visualizing the subsetted samples
+
+# AdV5
+j9_adv5$integrated_snn_res.0.5 <- factor(
+  x = j9_adv5$integrated_snn_res.0.5,
+  levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
+             11, 12, 13, 14, 15, 16, 17, 18))
+
+Idents(j9_adv5) <- "integrated_snn_res.0.5"
+
+j9_adv5_umap_cluster <-DimPlot(j9_adv5,
+                               reduction = "umap", label = TRUE,
+                               pt.size = 0.5, label.size = 6, 
+                               cols = c("#51574a", "#447c69", "#74c493",
+                                        "#8e8c6d", "#e4bf80", "#e9d78e",
+                                        "#e2975d", "#f19670", "#e16552",
+                                        "#c94a53", "#be5168", "#a34974",
+                                        "#993767", "#65387d", "#4e2472",
+                                        "#9163b6", "#e279a3", "#e0598b",
+                                        "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+j9_adv5_umap_cluster
+
+ggsave("./UMAPs/j9_adv5_all_cluster.png", 
+       plot = j9_adv5_umap_cluster, 
+       width = 20, height = 15, units = "cm")
+
+
+# AdV40
+j9_adv40$integrated_snn_res.0.5 <- factor(
+  x = j9_adv40$integrated_snn_res.0.5,
+  levels = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
+             11, 12, 13, 14, 15, 16, 17, 18))
+
+Idents(j9_adv40) <- "integrated_snn_res.0.5"
+
+j9_adv40_umap_cluster <-DimPlot(j9_adv40,
+                                reduction = "umap", label = TRUE,
+                                pt.size = 0.5, label.size = 6, 
+                                cols = c("#51574a", "#447c69", "#74c493",
+                                         "#8e8c6d", "#e4bf80", "#e9d78e",
+                                         "#e2975d", "#f19670", "#e16552",
+                                         "#c94a53", "#be5168", "#a34974",
+                                         "#993767", "#65387d", "#4e2472",
+                                         "#9163b6", "#e279a3", "#e0598b",
+                                         "#7c9fb0", "#5698c4", "#9abf88")
+) + NoAxes() + theme(legend.text=element_text(size=16))
+
+j9_adv40_umap_cluster
+
+ggsave("./UMAPs/j9_adv40_all_cluster.png", 
+       plot = j9_adv40_umap_cluster, 
+       width = 20, height = 15, units = "cm")
+
+
+```
+
+```{r}
+## Testing the cluster on the right
+
+## Infected cells (with viral RNA) against Mock
+
+Idents(integrated_j9_all) <- "integrated_snn_res.0.5"
+
+# Cluster 1, 8, 11, 18 vs all other cluster
+cluster_right <- FindMarkers(integrated_j9_all, ident.1 = c(1, 8, 11, 18),
+                             ident.2 = c(0, 2, 3, 4, 5, 6, 7,
+                                         9, 10, 12, 13, 16, 17),
+                             only.pos = F, 
+                             min.pct = 0.1, logfc.threshold = 0.25)
+
+write.csv2(cluster_right, file = "Data output/DEG_cluster_right.csv")
+```
+
